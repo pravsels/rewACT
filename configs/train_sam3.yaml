@@ -1,7 +1,38 @@
 # Training configuration for SAM3 action-focused run
 dataset:
   repo_id:
+    # Footbag
+    - villekuosmanen/drop_footbag_into_dice_tower
+    - villekuosmanen/drop_footbag_into_dice_tower_continuous
+    - villekuosmanen/fail_drop_footbag_into_dice_tower
+    - villekuosmanen/eval_dAgger_drop_footbag_into_dice_tower_1.0.0
+    - villekuosmanen/eval_dAgger_drop_footbag_into_dice_tower_1.4.0
+    - villekuosmanen/eval_dAgger_drop_footbag_into_dice_tower_1.7.0
+    - villekuosmanen/dAgger_drop_footbag_into_dice_tower_1.0.0
+    - villekuosmanen/dAgger_drop_footbag_into_dice_tower_1.1.0
+    - villekuosmanen/dAgger_drop_footbag_into_dice_tower_1.2.0
+    - villekuosmanen/dAgger_drop_footbag_into_dice_tower_1.3.0
+    - villekuosmanen/dAgger_drop_footbag_into_dice_tower_1.4.0
+    - villekuosmanen/dAgger_drop_footbag_into_dice_tower_1.5.0
+    - villekuosmanen/dAgger_drop_footbag_into_dice_tower_1.6.0
+    # Block Tower
     - villekuosmanen/build_block_tower
+    - villekuosmanen/dAgger_build_block_tower_1.0.0
+    - villekuosmanen/dAgger_build_block_tower_1.1.0
+    - villekuosmanen/dAgger_build_block_tower_1.2.0
+    - villekuosmanen/dAgger_build_block_tower_1.3.0
+    - villekuosmanen/dAgger_build_block_tower_1.4.0
+    - villekuosmanen/fail_build_block_tower_stationary
+    - villekuosmanen/fail_build_block_tower_autonomous_interaction
+    # Toothbrush
+    - villekuosmanen/pack_toothbrush_Nov19
+    - villekuosmanen/dAgger_pack_toothbrush_Nov22
+    - villekuosmanen/pack_toothbrush_Nov26
+    - villekuosmanen/dAgger_pack_toothbrush_Nov26
+    - villekuosmanen/dAgger_pack_toothbrush_Nov28
+    - villekuosmanen/dAgger_pack_toothbrush_Nov30
+    - villekuosmanen/fail_pack_toothbrush_Nov30
+    - villekuosmanen/dAgger_pack_toothbrush_Dec2
   image_transforms:
     enable: true
 
