@@ -77,6 +77,11 @@ class RewACTConfig(ACTConfig):
     value_max: int = 1
 
     push_to_hub: bool = False
+    
+    # Proprioception dropout: probability of zeroing out the proprioceptive state during training.
+    # This encourages the model to rely more on image features which are harder to learn.
+    # Set to 0.0 to disable. Recommended value: 0.3
+    proprio_dropout: float = 0.3
 
     # Vision encoder abstraction.
     # - "resnet": torchvision resnet -> feature map -> flatten tokens (current behavior)
