@@ -269,6 +269,17 @@ def train(cfg: TrainPipelineConfig):
     for _ in range(step, cfg.steps):
         start_time = time.perf_counter()
         batch = next(dl_iter)
+        
+        # Transform eef_6d_pose from 6D to 7D by appending gripper status from observation.state
+        if 'observation.eef_6d_pose' in batch and 'observation.state' in batch:
+            eef = batch['observation.eef_6d_pose']
+            state = batch['observation.state']
+            if eef.shape[-1] == 6 and state.shape[-1] >= 7:
+                if isinstance(eef, torch.Tensor):
+                    batch['observation.eef_6d_pose'] = torch.cat([eef, state[..., -1:]], dim=-1)
+                else:
+                    batch['observation.eef_6d_pose'] = np.concatenate([eef, state[..., -1:]], axis=-1)
+        
         batch = preprocessor(batch)
         train_tracker.dataloading_s = time.perf_counter() - start_time
 
