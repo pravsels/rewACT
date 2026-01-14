@@ -59,7 +59,7 @@ from robocandywrapper.plugins import EpisodeOutcomePlugin
 from robocandywrapper.samplers import load_sampler_config
 from robocandywrapper import make_dataset
 
-from rewact_tools import PiStar0_6CumulativeRewardPlugin, ControlModePlugin
+from rewact_tools import DenseRewardPlugin, ControlModePlugin
 from rewact_tools import make_pre_post_processors
 from utils import make_rewact_policy
 
@@ -144,7 +144,7 @@ def train(cfg: TrainPipelineConfig):
     torch.backends.cuda.matmul.allow_tf32 = True
 
     logging.info("Creating dataset")
-    dataset = make_dataset(cfg, plugins=[EpisodeOutcomePlugin(), ControlModePlugin(), PiStar0_6CumulativeRewardPlugin(normalise=True)])
+    dataset = make_dataset(cfg, plugins=[EpisodeOutcomePlugin(), ControlModePlugin(), DenseRewardPlugin()])
     dataset.meta.features['observation.eef_6d_pose']= {
         'dtype': "float32",
         'shape': (7,),
