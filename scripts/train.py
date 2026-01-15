@@ -304,7 +304,7 @@ def train(cfg: TrainPipelineConfig):
         is_saving_step = step % cfg.save_freq == 0 or step == cfg.steps
 
         if is_log_step:
-            logging.info(train_tracker)
+            logging.info(f"[step {step}] {train_tracker}")
             if wandb_logger:
                 wandb_log_dict = train_tracker.to_dict()
                 if output_dict:
