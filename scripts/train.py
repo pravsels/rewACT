@@ -201,7 +201,16 @@ def train(cfg: TrainPipelineConfig):
     step = 0  # number of policy updates (forward + backward + optim)
 
     if cfg.resume:
-        step, optimizer, lr_scheduler = load_training_state(cfg.checkpoint_path, optimizer, lr_scheduler)
+        # Debug: check what checkpoint_path is
+        logging.info(f"Resuming from checkpoint_path: {getattr(cfg, 'checkpoint_path', 'NOT SET')}")
+        logging.info(f"Output dir: {cfg.output_dir}")
+        checkpoint_path = getattr(cfg, 'checkpoint_path', None)
+        if checkpoint_path is None:
+            # Infer from output_dir if not set
+            import os
+            checkpoint_path = os.path.join(cfg.output_dir, "checkpoints", "last")
+            logging.info(f"Inferred checkpoint_path: {checkpoint_path}")
+        step, optimizer, lr_scheduler = load_training_state(checkpoint_path, optimizer, lr_scheduler)
 
     num_learnable_params = sum(p.numel() for p in policy.parameters() if p.requires_grad)
     num_total_params = sum(p.numel() for p in policy.parameters())

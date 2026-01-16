@@ -46,7 +46,6 @@ if [ -d "${LAST_CHECKPOINT}" ]; then
     TRAIN_CMD="python -u scripts/train.py \
         --config=${CONFIG_FILE} \
         --output_dir=${data_dir}/outputs/train/${JOB_NAME} \
-        --checkpoint_path=${LAST_CHECKPOINT} \
         --resume=true"
 else
     echo "No checkpoint found. Starting fresh training..."
