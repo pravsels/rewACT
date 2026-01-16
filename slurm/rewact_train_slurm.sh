@@ -47,11 +47,9 @@ if [ -d "${LAST_CHECKPOINT}" ]; then
     # train_config.json is in the pretrained_model subdirectory
     TRAIN_CONFIG_JSON="${LAST_CHECKPOINT}/pretrained_model/train_config.json"
     TRAIN_CMD="python -u scripts/train.py \
-        --config=${CONFIG_FILE} \
-        --output_dir=${data_dir}/outputs/train/${JOB_NAME} \
-        --resume=true \
         --config_path=${TRAIN_CONFIG_JSON} \
-        --policy.sam3.weights=${data_dir}/weights/sam3.pt"
+        --output_dir=${data_dir}/outputs/train/${JOB_NAME} \
+        --resume=true"
 else
     echo "No checkpoint found. Starting fresh training..."
     TRAIN_CMD="python -u scripts/train.py \
