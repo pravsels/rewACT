@@ -117,6 +117,20 @@ def update_policy(
 
 @parser.wrap()
 def train(cfg: TrainPipelineConfig):
+    # If resuming and config_path not set, infer it from output_dir
+    if cfg.resume:
+        config_path = getattr(cfg, 'config_path', None)
+        if config_path is None:
+            import os
+            checkpoint_path = getattr(cfg, 'checkpoint_path', None)
+            if checkpoint_path is None:
+                checkpoint_path = os.path.join(cfg.output_dir, "checkpoints", "last")
+            # train_config.json is in the pretrained_model subdirectory
+            config_path = os.path.join(checkpoint_path, "pretrained_model", "train_config.json")
+            if os.path.exists(config_path):
+                cfg.config_path = config_path
+                logging.info(f"Auto-detected config_path: {config_path}")
+    
     cfg.validate()
     logging.info(pformat(cfg.to_dict()))
 

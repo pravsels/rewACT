@@ -43,10 +43,14 @@ echo "===================================="
 # Auto-resume logic: check if a "last" checkpoint exists on scratch
 if [ -d "${LAST_CHECKPOINT}" ]; then
     echo "Found existing checkpoint at ${LAST_CHECKPOINT}. Resuming training..."
+    # When resuming, lerobot requires config_path pointing to train_config.json in checkpoint
+    # train_config.json is in the pretrained_model subdirectory
+    TRAIN_CONFIG_JSON="${LAST_CHECKPOINT}/pretrained_model/train_config.json"
     TRAIN_CMD="python -u scripts/train.py \
         --config=${CONFIG_FILE} \
         --output_dir=${data_dir}/outputs/train/${JOB_NAME} \
-        --resume=true"
+        --resume=true \
+        --config_path=${TRAIN_CONFIG_JSON}"
 else
     echo "No checkpoint found. Starting fresh training..."
     TRAIN_CMD="python -u scripts/train.py \
