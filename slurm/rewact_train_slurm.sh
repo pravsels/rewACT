@@ -70,7 +70,9 @@ echo "Running training command..."
 echo "Command: ${TRAIN_CMD}"
 echo ""
 
+
 # Run and capture exit code
+set +e
 srun --ntasks=1 --gpus-per-task=1 --cpu-bind=cores \
 apptainer exec --nv \
     --pwd "${repo_dir}" \
@@ -79,9 +81,9 @@ apptainer exec --nv \
     --env "HF_HOME=/root/.cache/huggingface" \
     "${container}" \
     bash -c "${EXPORT_VARS} && ${TRAIN_CMD}"
-
 # Capture exit code
 EXIT_CODE=$?
+set -e
 
 end_time="$(date -Is --utc)"
 
