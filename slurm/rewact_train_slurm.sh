@@ -50,7 +50,8 @@ if [ -d "${LAST_CHECKPOINT}" ]; then
         --config=${CONFIG_FILE} \
         --output_dir=${data_dir}/outputs/train/${JOB_NAME} \
         --resume=true \
-        --config_path=${TRAIN_CONFIG_JSON}"
+        --config_path=${TRAIN_CONFIG_JSON} \
+        --policy.sam3.weights=${data_dir}/weights/sam3.pt"
 else
     echo "No checkpoint found. Starting fresh training..."
     TRAIN_CMD="python -u scripts/train.py \
