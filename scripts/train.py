@@ -59,7 +59,7 @@ from robocandywrapper.plugins import EpisodeOutcomePlugin
 from robocandywrapper.samplers import load_sampler_config
 from robocandywrapper import make_dataset
 
-from rewact_tools import DenseRewardPlugin, ControlModePlugin
+from rewact_tools import ControlModePlugin, PiStar0_6CumulativeRewardPlugin
 from rewact_tools import make_pre_post_processors
 from utils import make_rewact_policy
 

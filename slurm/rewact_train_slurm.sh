@@ -58,12 +58,8 @@ else
         --policy.sam3.weights=${data_dir}/weights/sam3.pt"
 fi
 
-# Package Overlay Path (on scratch)
-PYTHON_EXT_DIR="${data_dir}/python_packages"
-
-# Ensure it's passed to the container
-EXPORT_VARS="export PYTHONPATH=${PYTHON_EXT_DIR}:${repo_dir}:\$PYTHONPATH"
-EXPORT_VARS="${EXPORT_VARS} && export LD_LIBRARY_PATH=${PYTHON_EXT_DIR}/torch/lib:\$LD_LIBRARY_PATH"
+# Ensure repo is in PYTHONPATH
+EXPORT_VARS="export PYTHONPATH=${repo_dir}:\$PYTHONPATH"
 EXPORT_VARS="${EXPORT_VARS} && export PYTHONUNBUFFERED=1"
 
 echo "Running training command..."
