@@ -58,8 +58,8 @@ else
         --policy.sam3.weights=${data_dir}/weights/sam3.pt"
 fi
 
-# Ensure repo is in PYTHONPATH
-EXPORT_VARS="export PYTHONPATH=${repo_dir}:\$PYTHONPATH"
+# Ensure local site-packages and repo are in PYTHONPATH
+EXPORT_VARS="export PYTHONPATH=/home/u5dm/pravsels.u5dm/.local/lib/python3.12/site-packages:${repo_dir}:\$PYTHONPATH"
 EXPORT_VARS="${EXPORT_VARS} && export PYTHONUNBUFFERED=1"
 
 echo "Running training command..."
