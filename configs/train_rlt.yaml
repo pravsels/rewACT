@@ -1,0 +1,43 @@
+# Stage-1 RLT training config for RewACT.
+# This trains only the RLT encoder/decoder on top of frozen rewACT encoder
+# outputs, using the inference-style zero latent and skipping the latent slot
+# from the reconstruction target.
+dataset:
+  repo_id:
+    # RewACT checkpoint training set
+    - villekuosmanen/build_block_tower
+    - villekuosmanen/dAgger_build_block_tower_1.3.0
+    - villekuosmanen/dAgger_build_block_tower_1.4.0
+  image_transforms:
+    enable: true
+
+policy:
+  type: rewact_rlt
+  device: cuda
+  vision_encoder_type: resnet
+  pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
+  n_decoder_layers: 4
+  n_action_steps: 50
+  push_to_hub: false
+
+  # Stage-1 RLT behavior
+  rlt_num_layers: 2
+  rlt_num_heads: 8
+  rlt_mlp_dim: 2048
+  rlt_loss_weight: 1.0
+  rlt_use_action_vae_latent: false
+  rlt_skip_latent_token: true
+  rlt_frozen_backbone: true
+
+batch_size: 32
+num_workers: 4
+steps: 100000
+job_name: &name rewact_rlt_block_tower
+log_freq: 100
+save_freq: 500
+save_checkpoint: true
+eval_freq: -1
+wandb:
+  enable: true
+  project: *name
+  mode: offline

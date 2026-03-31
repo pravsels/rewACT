@@ -24,6 +24,15 @@ except ImportError:
     ACTvantageConfig = None
 
 
+def apply_sampler_episodes(cfg, sampler_config) -> bool:
+    """Apply sampler-config episode filtering when a sampler config is present."""
+    if sampler_config is None:
+        return False
+
+    cfg.dataset.episodes = sampler_config.episodes
+    return True
+
+
 def make_rewact_policy(
     cfg: PreTrainedConfig,
     ds_meta: Optional[LeRobotDatasetMetadata] = None,

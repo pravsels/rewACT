@@ -57,6 +57,9 @@ lerobot-train \
     --env.type pusht \
     --steps 200000
 
+# Train the stage-1 RewACT RLT bottleneck
+python scripts/train.py --config=configs/train_rlt.yaml
+
 # Train ACTvantage policy
 lerobot-train \
     --policy.type actvantage \

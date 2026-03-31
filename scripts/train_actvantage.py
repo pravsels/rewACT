@@ -53,7 +53,7 @@ from robocandywrapper import make_dataset
 
 from rewact_tools import PiStar0_6CumulativeRewardPlugin, ControlModePlugin
 from rewact_tools import make_pre_post_processors
-from scripts.utils import make_actvantage_policy
+from scripts.utils import apply_sampler_episodes, make_actvantage_policy
 
 
 def update_policy(
@@ -123,7 +123,8 @@ def train(cfg: TrainPipelineConfig):
         set_seed(cfg.seed)
 
     sampler_config = load_sampler_config("scripts/configs/sampler_actvantage.json")
-    cfg.dataset.episodes = sampler_config.episodes
+    if not apply_sampler_episodes(cfg, sampler_config):
+        logging.warning("Sampler config not found. Proceeding without specific episode filtering.")
 
     # Check device is available
     device = get_safe_torch_device(cfg.policy.device, log=True)

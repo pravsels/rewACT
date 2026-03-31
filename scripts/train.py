@@ -53,7 +53,7 @@ from robocandywrapper import make_dataset
 
 from rewact_tools import PiStar0_6CumulativeRewardPlugin, ControlModePlugin
 from rewact_tools import make_pre_post_processors
-from utils import make_policy
+from utils import apply_sampler_episodes, make_policy
 
 def update_policy(
     train_metrics: MetricsTracker,
@@ -125,7 +125,8 @@ def train(cfg: TrainPipelineConfig):
     cfg.dataset.video_backend = "pyav"
 
     sampler_config = load_sampler_config("scripts/configs/sampler_rewact.json")
-    cfg.dataset.episodes = sampler_config.episodes
+    if not apply_sampler_episodes(cfg, sampler_config):
+        logging.warning("Sampler config not found. Proceeding without specific episode filtering.")
 
     # Check device is available
     device = get_safe_torch_device(cfg.policy.device, log=True)

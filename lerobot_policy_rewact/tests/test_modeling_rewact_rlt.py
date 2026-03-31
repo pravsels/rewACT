@@ -84,6 +84,22 @@ class RewACTRLTTest(unittest.TestCase):
 
         self.assertEqual(target.shape, (2, 2, 16))
 
+    def test_rewact_rlt_optimizer_only_includes_trainable_rlt_params(self):
+        config = RewACTRLTConfig(
+            **_make_common_kwargs(),
+            rlt_num_layers=1,
+            rlt_num_heads=4,
+            rlt_mlp_dim=32,
+            rlt_frozen_backbone=True,
+        )
+        policy = RewACTRLTPolicy(config)
+
+        param_groups = policy.get_optim_params()
+
+        self.assertEqual(len(param_groups), 1)
+        self.assertTrue(param_groups[0]["params"])
+        self.assertTrue(all(param.requires_grad for param in param_groups[0]["params"]))
+
 
 if __name__ == "__main__":
     unittest.main()
