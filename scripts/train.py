@@ -61,7 +61,7 @@ from robocandywrapper import make_dataset
 
 from rewact_tools import ControlModePlugin, PiStar0_6CumulativeRewardPlugin
 from rewact_tools import make_pre_post_processors
-from utils import make_rewact_policy
+from utils import make_policy
 
 def update_policy(
     train_metrics: MetricsTracker,
@@ -178,7 +178,7 @@ def train(cfg: TrainPipelineConfig):
     #     ])
 
     logging.info("Creating policy")
-    policy = make_rewact_policy(cfg.policy, dataset.meta)
+    policy = make_policy(cfg.policy, dataset.meta)
 
     # Create processors - only provide dataset_stats if not resuming from saved processors
     processor_kwargs = {}
