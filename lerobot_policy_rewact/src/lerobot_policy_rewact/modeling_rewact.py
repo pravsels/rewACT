@@ -126,6 +126,19 @@ class RewACTPolicy(PreTrainedPolicy):
         else:
             self._action_queue = deque([], maxlen=self.config.n_action_steps)
 
+    def _prepare_model_batch(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
+        if not self.config.image_features:
+            return batch
+
+        batch = dict(batch)
+        batch[OBS_IMAGES] = [batch[key] for key in self.config.image_features]
+        # Past images for VJEPA2 temporal context
+        if self.config.vision_encoder_type == "vjepa2":
+            past_keys = [k.replace("observation.images.", "observation.images_past.") for k in self.config.image_features]
+            if all(k in batch for k in past_keys):
+                batch["observation.images_past"] = [batch[k] for k in past_keys]
+        return batch
+
     @torch.no_grad()
     def select_action(self, batch: dict[str, Tensor], force_model_run: bool = False) -> tuple[Tensor, Tensor]:
         """Select a single action given environment observations."""
@@ -190,30 +203,13 @@ class RewACTPolicy(PreTrainedPolicy):
     def predict_action_chunk(self, batch: dict[str, Tensor]) -> tuple[Tensor, dict]:
         """Predict a chunk of actions given environment observations."""
         self.eval()
-
-        if self.config.image_features:
-            batch = dict(batch)
-            batch[OBS_IMAGES] = [batch[key] for key in self.config.image_features]
-            # Past images for VJEPA2 temporal context
-            if self.config.vision_encoder_type == "vjepa2":
-                past_keys = [k.replace("observation.images.", "observation.images_past.") for k in self.config.image_features]
-                if all(k in batch for k in past_keys):
-                    batch["observation.images_past"] = [batch[k] for k in past_keys]
-
+        batch = self._prepare_model_batch(batch)
         actions, reward_output, _ = self.model(batch)
         return actions, reward_output
 
     def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, dict]:
         """Run the batch through the model and compute the loss for training or validation."""
-        if self.config.image_features:
-            batch = dict(batch)
-            batch[OBS_IMAGES] = [batch[key] for key in self.config.image_features]
-            # Past images for VJEPA2 temporal context
-            if self.config.vision_encoder_type == "vjepa2":
-                past_keys = [k.replace("observation.images.", "observation.images_past.") for k in self.config.image_features]
-                if all(k in batch for k in past_keys):
-                    batch["observation.images_past"] = [batch[k] for k in past_keys]
-
+        batch = self._prepare_model_batch(batch)
         actions_hat, reward_output, (mu_hat, log_sigma_x2_hat) = self.model(batch)
 
         # For action loss, we calculate a combined mask using the use_action_mask and action_is_pad, episode_outcome, as well as control_mode != "policy"
@@ -397,31 +393,14 @@ class RewACT(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, tuple[Tensor, Tensor] | tuple[None, None]]:
-        """A forward pass through the Action Chunking Transformer (with optional VAE encoder).
+    def _get_batch_size(self, batch: dict[str, Tensor]) -> int:
+        if OBS_IMAGES in batch:
+            return batch[OBS_IMAGES][0].shape[0]
+        if OBS_ENV_STATE in batch:
+            return batch[OBS_ENV_STATE].shape[0]
+        return batch[OBS_STATE].shape[0]
 
-        Expected `batch` keys (actual keys used by this implementation):
-        Inputs (inference + training):
-        - "observation.state": (B, state_dim) robot proprioceptive state. Required if `config.robot_state_feature` is set.
-        - "observation.images": optional, list of camera tensors, each (B, C, H, W). Present when using vision inputs.
-          Note: `RewACTPolicy` constructs this from per-camera keys like "observation.images.top", etc.
-        - "observation.environment_state": optional, (B, env_dim). Present when using env-state inputs.
-        Training-only (needed when `config.use_vae` and `self.training` is True):
-        - "action": (B, chunk_size, action_dim) action chunk used by the VAE encoder.
-        - "action_is_pad": (B, chunk_size) boolean padding mask for the action sequence (True means pad).
-        
-        Returns:
-        - actions: (B, chunk_size, action_dim)
-        - reward_preds: (B, 1, 1) if `config.use_reward_head` else None (only predicts reward for the first step)
-        - (mu, log_sigma_x2): both (B, latent_dim) if using VAE in training, else (None, None)
-        """
-        if self.config.use_vae and self.training:
-            assert ACTION in batch, (
-                "actions must be provided when using the variational objective in training mode."
-            )
-
-        batch_size = batch[OBS_IMAGES][0].shape[0] if OBS_IMAGES in batch else batch[OBS_ENV_STATE].shape[0]
-
+    def _compute_obs_state(self, batch: dict[str, Tensor], batch_size: int) -> Tensor:
         # Apply proprioception dropout during training: zero out the entire proprio state
         # for a fraction of samples to encourage reliance on image features.
         if self.config.proprio_dropout > 0.0 and self.training:
@@ -430,12 +409,23 @@ class RewACT(nn.Module):
             # Expand to (B, 1) for broadcasting with state dimension and convert to float
             keep_mask = keep_mask.unsqueeze(-1).float()
             # Apply mask - zeros out entire state vector for masked samples
-            obs_state = batch[OBS_STATE] * keep_mask
-        else:
-            obs_state = batch[OBS_STATE]
+            return batch[OBS_STATE] * keep_mask
+        return batch[OBS_STATE]
 
-        # Prepare the latent for input to the transformer encoder.
-        if self.config.use_vae and ACTION in batch and self.training:
+    def _compute_latent_sample(
+        self,
+        batch: dict[str, Tensor],
+        obs_state: Tensor,
+        batch_size: int,
+        *,
+        use_action_vae_latent: bool | None = None,
+    ) -> tuple[Tensor, tuple[Tensor | None, Tensor | None]]:
+        if use_action_vae_latent is None:
+            use_action_vae_latent = self.config.use_vae and ACTION in batch and self.training
+
+        if self.config.use_vae and use_action_vae_latent:
+            assert ACTION in batch, "actions must be provided when using the action-conditioned VAE latent."
+
             # Prepare the input to the VAE encoder: [cls, *joint_space_configuration, *action_sequence].
             cls_embed = einops.repeat(
                 self.vae_encoder_cls_embed.weight, "1 d -> b 1 d", b=batch_size
@@ -452,7 +442,6 @@ class RewACT(nn.Module):
             vae_encoder_input = torch.cat(vae_encoder_input, axis=1)
 
             # Prepare fixed positional embedding.
-            # Note: detach() shouldn't be necessary but leaving it the same as the original code just in case.
             pos_embed = self.vae_encoder_pos_enc.clone().detach()  # (1, S+2, D)
 
             # Prepare key padding mask for the transformer encoder. We have 1 or 2 extra tokens at the start of the
@@ -480,14 +469,20 @@ class RewACT(nn.Module):
 
             # Sample the latent with the reparameterization trick.
             latent_sample = mu + log_sigma_x2.div(2).exp() * torch.randn_like(mu)
-        else:
-            # When not using the VAE encoder, we set the latent to be all zeros.
-            mu = log_sigma_x2 = None
-            # TODO(rcadene, alexander-soare): remove call to `.to` to speedup forward ; precompute and use buffer
-            latent_sample = torch.zeros([batch_size, self.config.latent_dim], dtype=torch.float32).to(
-                obs_state.device
-            )
+            return latent_sample, (mu, log_sigma_x2)
 
+        # When not using the VAE encoder, use the inference-style zero latent.
+        latent_sample = torch.zeros([batch_size, self.config.latent_dim], dtype=torch.float32).to(
+            obs_state.device
+        )
+        return latent_sample, (None, None)
+
+    def _prepare_encoder_inputs(
+        self,
+        batch: dict[str, Tensor],
+        obs_state: Tensor,
+        latent_sample: Tensor,
+    ) -> tuple[Tensor, Tensor]:
         # Prepare transformer encoder inputs.
         encoder_input_tokens = [self.encoder_latent_input_proj(latent_sample)]
         encoder_input_pos_embeds = list(self.encoder_1d_feature_pos_embed.weight.unsqueeze(1))
@@ -517,9 +512,61 @@ class RewACT(nn.Module):
         # Stack all tokens along the sequence dimension.
         encoder_input_tokens = torch.stack(encoder_input_tokens, axis=0)
         encoder_input_pos_embeds = torch.stack(encoder_input_pos_embeds, axis=0)
+        return encoder_input_tokens, encoder_input_pos_embeds
 
-        # Forward pass through the transformer modules.
+    def compute_encoder_out(
+        self,
+        batch: dict[str, Tensor],
+        *,
+        use_action_vae_latent: bool | None = None,
+        return_aux: bool = False,
+    ):
+        batch_size = self._get_batch_size(batch)
+        obs_state = self._compute_obs_state(batch, batch_size)
+        latent_sample, latent_stats = self._compute_latent_sample(
+            batch,
+            obs_state,
+            batch_size,
+            use_action_vae_latent=use_action_vae_latent,
+        )
+        encoder_input_tokens, encoder_input_pos_embeds = self._prepare_encoder_inputs(
+            batch,
+            obs_state,
+            latent_sample,
+        )
         encoder_out = self.encoder(encoder_input_tokens, pos_embed=encoder_input_pos_embeds)
+
+        if return_aux:
+            return encoder_out, encoder_input_pos_embeds, latent_stats
+        return encoder_out, encoder_input_pos_embeds
+
+    def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, tuple[Tensor, Tensor] | tuple[None, None]]:
+        """A forward pass through the Action Chunking Transformer (with optional VAE encoder).
+
+        Expected `batch` keys (actual keys used by this implementation):
+        Inputs (inference + training):
+        - "observation.state": (B, state_dim) robot proprioceptive state. Required if `config.robot_state_feature` is set.
+        - "observation.images": optional, list of camera tensors, each (B, C, H, W). Present when using vision inputs.
+          Note: `RewACTPolicy` constructs this from per-camera keys like "observation.images.top", etc.
+        - "observation.environment_state": optional, (B, env_dim). Present when using env-state inputs.
+        Training-only (needed when `config.use_vae` and `self.training` is True):
+        - "action": (B, chunk_size, action_dim) action chunk used by the VAE encoder.
+        - "action_is_pad": (B, chunk_size) boolean padding mask for the action sequence (True means pad).
+        
+        Returns:
+        - actions: (B, chunk_size, action_dim)
+        - reward_preds: (B, 1, 1) if `config.use_reward_head` else None (only predicts reward for the first step)
+        - (mu, log_sigma_x2): both (B, latent_dim) if using VAE in training, else (None, None)
+        """
+        if self.config.use_vae and self.training and ACTION in batch:
+            assert ACTION in batch, (
+                "actions must be provided when using the variational objective in training mode."
+            )
+        encoder_out, encoder_input_pos_embeds, (mu, log_sigma_x2) = self.compute_encoder_out(
+            batch,
+            return_aux=True,
+        )
+        batch_size = self._get_batch_size(batch)
         # TODO(rcadene, alexander-soare): remove call to `device` ; precompute and use buffer
         decoder_in = torch.zeros(
             (self.config.chunk_size, batch_size, self.config.dim_model),

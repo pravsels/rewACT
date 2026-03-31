@@ -10,9 +10,12 @@ from lerobot.configs.types import FeatureType
 # Import from installed policy packages
 try:
     from lerobot_policy_rewact import RewACTPolicy, RewACTConfig
+    from lerobot_policy_rewact import RewACTRLTPolicy, RewACTRLTConfig
 except ImportError:
     RewACTPolicy = None
     RewACTConfig = None
+    RewACTRLTPolicy = None
+    RewACTRLTConfig = None
 
 try:
     from lerobot_policy_actvantage import ACTvantagePolicy, ACTvantageConfig
@@ -76,6 +79,57 @@ def make_rewact_policy(
     policy.to(target_device)
     
     return policy
+
+
+def make_rewact_rlt_policy(
+    cfg: PreTrainedConfig,
+    ds_meta: Optional[LeRobotDatasetMetadata] = None,
+    device: Optional[str] = None,
+):
+    """
+    Create a RewACT RLT policy from configuration and dataset metadata.
+
+    Raises:
+        ImportError: If lerobot_policy_rewact is not installed
+    """
+    if RewACTRLTPolicy is None:
+        raise ImportError("lerobot_policy_rewact is not installed. Please install it to use RewACT RLT policies.")
+
+    if ds_meta is None:
+        raise ValueError("Dataset metadata (ds_meta) is required for policy creation")
+
+    kwargs = {}
+    features = dataset_to_policy_features(ds_meta.features)
+    kwargs["dataset_stats"] = ds_meta.stats
+
+    cfg.output_features = {key: ft for key, ft in features.items() if ft.type is FeatureType.ACTION}
+    cfg.input_features = {key: ft for key, ft in features.items() if key not in cfg.output_features}
+    kwargs["config"] = cfg
+
+    if getattr(cfg, "pretrained_path", None):
+        kwargs["pretrained_name_or_path"] = cfg.pretrained_path
+        policy = RewACTRLTPolicy.from_pretrained(**kwargs)
+    else:
+        policy = RewACTRLTPolicy(**kwargs)
+
+    target_device = device if device is not None else getattr(cfg, "device", "cpu")
+    policy.to(target_device)
+
+    return policy
+
+
+def make_policy(
+    cfg: PreTrainedConfig,
+    ds_meta: Optional[LeRobotDatasetMetadata] = None,
+    device: Optional[str] = None,
+):
+    if RewACTRLTConfig is not None and isinstance(cfg, RewACTRLTConfig):
+        return make_rewact_rlt_policy(cfg, ds_meta=ds_meta, device=device)
+    if RewACTConfig is not None and isinstance(cfg, RewACTConfig):
+        return make_rewact_policy(cfg, ds_meta=ds_meta, device=device)
+    if ACTvantageConfig is not None and isinstance(cfg, ACTvantageConfig):
+        return make_actvantage_policy(cfg, ds_meta=ds_meta, device=device)
+    raise ValueError(f"Unsupported policy config type: {type(cfg).__name__}")
 
 
 def make_actvantage_policy(
