@@ -16,6 +16,7 @@
 import logging
 import time
 from contextlib import nullcontext
+from pathlib import Path
 from pprint import pformat
 from typing import Any
 
@@ -109,7 +110,21 @@ def update_policy(
 
 @parser.wrap()
 def train(cfg: TrainPipelineConfig):
+    if cfg.resume and not getattr(cfg, 'checkpoint_path', None):
+        last_ckpt = Path(cfg.output_dir) / "checkpoints" / "last"
+        if last_ckpt.exists():
+            cfg.checkpoint_path = str(last_ckpt)
+            logging.info(f"Auto-resuming from last checkpoint: {last_ckpt}")
+        else:
+            logging.info("No checkpoint found, starting fresh training")
+            cfg.resume = False
+
+    # Bypass lerobot's config_path requirement — we handle resume via checkpoint_path
+    _resume = cfg.resume
+    cfg.resume = False
     cfg.validate()
+    cfg.resume = _resume
+
     logging.info(pformat(cfg.to_dict()))
 
     if cfg.wandb.enable and cfg.wandb.project:
