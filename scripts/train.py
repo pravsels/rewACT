@@ -123,7 +123,7 @@ def train(cfg: TrainPipelineConfig):
     # fake resume=False and a non-existent output_dir to skip lerobot's checks
     _resume, _output_dir = cfg.resume, cfg.output_dir
     cfg.resume = False
-    cfg.output_dir = cfg.output_dir + "/_validate"
+    cfg.output_dir = cfg.output_dir / "_validate"
     cfg.validate()
     cfg.resume, cfg.output_dir = _resume, _output_dir
 
