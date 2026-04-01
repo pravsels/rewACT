@@ -119,6 +119,14 @@ def train(cfg: TrainPipelineConfig):
             logging.info("No checkpoint found, starting fresh training")
             cfg.resume = False
 
+    # Run validate() for its setup side-effects (optimizer config, etc.) but
+    # fake resume=False and a non-existent output_dir to skip lerobot's checks
+    _resume, _output_dir = cfg.resume, cfg.output_dir
+    cfg.resume = False
+    cfg.output_dir = cfg.output_dir + "/_validate"
+    cfg.validate()
+    cfg.resume, cfg.output_dir = _resume, _output_dir
+
     logging.info(pformat(cfg.to_dict()))
 
     if cfg.wandb.enable and cfg.wandb.project:
