@@ -29,9 +29,10 @@ policy:
   rlt_skip_latent_token: true
   rlt_frozen_backbone: true
 
-batch_size: 32
+batch_size: 64
 num_workers: 4
 steps: 100000
+resume: true
 job_name: &name rewact_rlt_block_tower
 log_freq: 100
 save_freq: 500
