@@ -119,12 +119,6 @@ def train(cfg: TrainPipelineConfig):
             logging.info("No checkpoint found, starting fresh training")
             cfg.resume = False
 
-    # Bypass lerobot's config_path requirement — we handle resume via checkpoint_path
-    _resume = cfg.resume
-    cfg.resume = False
-    cfg.validate()
-    cfg.resume = _resume
-
     logging.info(pformat(cfg.to_dict()))
 
     if cfg.wandb.enable and cfg.wandb.project:
